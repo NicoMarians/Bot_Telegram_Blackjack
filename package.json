@@ -1,0 +1,24 @@
+{
+  "name": "bot_telegram_blackjack",
+  "version": "1.0.0",
+  "description": "Bot di telegram per giocare a Blackjack",
+  "main": "bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NicoMarians/Bot_Telegram_Blackjack.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/NicoMarians/Bot_Telegram_Blackjack/issues"
+  },
+  "homepage": "https://github.com/NicoMarians/Bot_Telegram_Blackjack#readme",
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "node-telegram-bot-api": "^0.66.0",
+    "require": "^2.4.20"
+  }
+}
