@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/NicoMarians/Bot_Telegram_Blackjack#readme",
   "dependencies": {
+    "express": "^5.1.0",
     "fs": "^0.0.1-security",
     "node-telegram-bot-api": "^0.66.0",
     "require": "^2.4.20"

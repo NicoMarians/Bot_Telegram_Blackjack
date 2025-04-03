@@ -5,9 +5,11 @@ const token = conf.key;
 
 const bot = new TelegramBot(token, {polling: true});
 
+const functions = require("./functions");
+
+
 bot.on("message",(msg) => {
     const chatId = msg.chat.id;
-
     const text = msg.text;
 
     if (text === "/start"){
@@ -17,14 +19,21 @@ bot.on("message",(msg) => {
     if (text === "/help"){
         bot.sendMessage(chatId, `Per le regole del Blackjack visita il sito: https://www.pokerstars.it/casino/how-to-play/blackjack/rules/ \n
             Comandi:\n
-                /play - Inizia una nuova partita\n
+                /play [Amount] - Inizia una nuova partita\n
                 /load - Carica una partita iniziata in precedenza\n
                 /hit - Chiedi una carta\n
                 /stay - Conferma la mano\n
                 /double - Raddoppia la mano (Se possibile)\n
                 /split - Splitta la mano (Se possibile)\n
                 /insure - Fa l'assicurazione (Se possibile)\n
+                /bet [Amount] - Scommetti\n
                 /balance - Mostra i soldi correnti\n
             `)
     }
-})
+
+    if (text.includes("/play")){
+        bot.sendMessage(chatId,"PLAYING")
+        functions.saluta(bot,chatId);
+    }
+
+});
