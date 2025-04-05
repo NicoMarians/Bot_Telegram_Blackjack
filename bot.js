@@ -8,27 +8,68 @@ const bot = new TelegramBot(token, {polling: true});
 
 const functions = require("./functions");
 
-let deckId = "";
-
-const dealer = {
-    "hand":[],
-    "draw": async (deckId) => {
-        let drawUrl = urls.draw.replace("$DECK_ID",deckId);
-        drawUrl = drawUrl.replace("$CARD_COUNT","2");
-        fetch(drawUrl).then(r => r.json()).then((newData) => console.log(newData))
+const createDealer = () => {
+    let connData = {}
+    return{
+        "initializeData": (newData) => {
+            connData = newData;
+        },
+        "hand":[],
+        "drawFirstHand": async () => {
+            let drawUrl = urls.draw.replace("<<$DECK_ID>>",connData.deckId);
+            drawUrl = drawUrl.replace("$CARD_COUNT",2);
+            await fetch(drawUrl).then(r => r.json()).then((newData) => {
+                this.hand = newData.cards;
+                console.log(this.hand);
+                connData.bot.sendMessage(connData.chatId,"Carte del dealer").then(() => {
+                    connData.bot.sendPhoto(connData.chatId,this.hand[0].image).then(() => {
+                        connData.bot.sendPhoto(connData.chatId,"https://deckofcardsapi.com/static/img/back.png");
+                    });
+                });
+            });
+            if (this.hand[0].value == "ACE"){
+                player.canInsure = true;
+            }
+        }
     }
 }
 
-const player = {
-    "hand":[],
-    "draw": (deckId) => {
-        let drawUrl = urls.draw.replace("$DECK_ID",deckId);
-        drawUrl = drawUrl.replace("$CARD_COUNT","2")
-        fetch(drawUrl).then(r => r.json()).then((newData) => console.log(newData))
+const dealer = createDealer();
+
+const createPlayer = () => {
+    connData = {};
+    return {
+        "initializeData": (newData) => {
+            connData = newData;
+        },
+        "canHit": true,
+        "canInsure": false,
+        "balance": 0,
+        "hand": [],
+        "drawFirstHand": async () => {
+            let drawUrl = urls.draw.replace("<<$DECK_ID>>",connData.deckId);
+            drawUrl = drawUrl.replace("$CARD_COUNT",2);
+            await fetch(drawUrl).then(r => r.json()).then((newData) => {
+                this.hand = newData.cards;
+                connData.bot.sendMessage(connData.chatId,"Le tue carte").then(() => {
+                    this.hand.forEach((card) => {
+                        connData.bot.sendPhoto(connData.chatId,card.image);  
+                    });
+                });
+            });
+
+            let sum = 0;
+            this.hand.forEach((card) => {
+                if (card.value == "ACE") card.value = 11;
+                sum += card.value;
+                if (sum < 21) this.canHit = true
+            })
+        }
     }
+    
 }
 
-let balance = 0;
+const player = createPlayer();
 
 bot.on("message",(msg) => {
     const chatId = msg.chat.id;
@@ -55,7 +96,6 @@ bot.on("message",(msg) => {
 
     if (text.includes("/play")){
         
-        //cambiare
         let balance = text.split(" ");
         if (balance.length == 2){
             balance = parseInt(balance[1]);
@@ -68,17 +108,15 @@ bot.on("message",(msg) => {
             balance = 4000;
         } 
 
+        player.balance = balance;
+
         const newDeckUrl = urls.newDeck.replace("$DECK_COUNT","6");
         fetch(newDeckUrl).then(r => r.json()).then((newData) =>{
-            deckId = newData.deck_id;
-            dealer.draw(deckId)
+            const deckId = newData.deck_id;
+            dealer.initializeData({"deckId":deckId,"chatId":chatId,"bot":bot});
+            player.initializeData({"deckId":deckId,"chatId":chatId,"bot":bot});
+            functions.startTurn(deckId,player,dealer,bot,chatId);
         });
-
-        
-
-
-
-        
 
         //dealer.draw();
         //bot.sendMessage(chatId, dealer.hand[0]);
