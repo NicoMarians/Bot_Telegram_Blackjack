@@ -8,21 +8,24 @@ const bot = new TelegramBot(token, {polling: true});
 
 const functions = require("./functions");
 
-
-
+let deckId = "";
 
 const dealer = {
     "hand":[],
     "draw": async (deckId) => {
         let drawUrl = urls.draw.replace("$DECK_ID",deckId);
-        drawUrl = drawUrl.replace("$CARD_COUNT","2")
+        drawUrl = drawUrl.replace("$CARD_COUNT","2");
         fetch(drawUrl).then(r => r.json()).then((newData) => console.log(newData))
-        this.hand = []
     }
 }
 
 const player = {
-
+    "hand":[],
+    "draw": (deckId) => {
+        let drawUrl = urls.draw.replace("$DECK_ID",deckId);
+        drawUrl = drawUrl.replace("$CARD_COUNT","2")
+        fetch(drawUrl).then(r => r.json()).then((newData) => console.log(newData))
+    }
 }
 
 let balance = 0;
@@ -63,11 +66,13 @@ bot.on("message",(msg) => {
         } else {
             bot.sendMessage(chatId, "Errore, Soldi impostati automaticamente a 4000");
             balance = 4000;
-        }
+        } 
 
         const newDeckUrl = urls.newDeck.replace("$DECK_COUNT","6");
-        console.log(newDeckUrl)
-        fetch(newDeckUrl).then(r => r.json()).then((newData) => console.log(newData));
+        fetch(newDeckUrl).then(r => r.json()).then((newData) =>{
+            deckId = newData.deck_id;
+            dealer.draw(deckId)
+        });
 
         
 
