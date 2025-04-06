@@ -14,57 +14,68 @@ const createDealer = () => {
         initializeData: (newData) => {
             connData = newData;
         },
-        hand:[],
-        drawFirstHand: async () => {
+        dealerHand:[],
+        drawFirstHand: () => {
             let drawUrl = urls.draw.replace("<<$DECK_ID>>",connData.deckId);
             drawUrl = drawUrl.replace("$CARD_COUNT",2);
-            await fetch(drawUrl).then(r => r.json()).then((newData) => {
-                this.hand = newData.cards;
+            fetch(drawUrl).then(r => r.json()).then((newData) => {
+                this.dealerHand = newData.cards;
                 connData.bot.sendMessage(connData.chatId,"Carte del dealer")
-                connData.bot.sendPhoto(connData.chatId,this.hand[0].image)
+                connData.bot.sendPhoto(connData.chatId,this.dealerHand[0].image)
                 connData.bot.sendPhoto(connData.chatId,"https://deckofcardsapi.com/static/img/back.png");
+                if (this.dealerHand[0].value == "ACE"){
+                    player.canInsure = true;
+                }
+    
+                for (let i = 0;i < this.dealerHand.length;i ++){
+                    let value = functions.convertCardValue(this.dealerHand[i]);
+                    this.dealerHand[i].value = value;
+                };
             });
-            if (this.hand[0].value == "ACE"){
-                player.canInsure = true;
-            }
-
-            for (let i = 0;i < this.hand.length;i ++){
-                let value = functions.convertCardValue(this.hand[i]);
-                this.hand[i].value = value;
-            };
-
         },
-        drawCard: async () => {
+        drawCards: async () => {
             let drawUrl = urls.draw.replace("<<$DECK_ID>>",connData.deckId);
             drawUrl = drawUrl.replace("$CARD_COUNT",1);
-            await fetch(drawUrl).then(r => r.json()).then((newData) => {
-                let newCard = newData.cards[0];
-                let value = functions.convertCardValue(newCard);
-                newCard.value = value;
-                this.hand.push(newCard);
-                setTimeout(() => {
+
+            let sum = 0
+            this.dealerHand.forEach((card) => {
+                sum += card.value;
+            })
+            console.log("DEALER SUM 44   ",sum);
+
+            while (sum < 17) {
+                console.log("DEALER DRAWING");
+                await fetch(drawUrl).then(r => r.json()).then((newData) => {
+                    let card = newData.cards[0]
+                    let value = functions.convertCardValue(card);
+                    sum += value;
+                    card.value = value;
                     connData.bot.sendPhoto(connData.chatId,card.image);
-                },500);
-            });  
-        },
-        showCards: () => {
-            connData.bot.sendMessage(connData.chatId,"Carte del dealer");
-            setTimeout(() => {
-                this.hand.forEach((card) => {
-                    connData.bot.sendPhoto(connData.chatId,card.image)
+                    this.dealerHand.push(card);
                 });
-            },1000);
-            
+            }
+            console.log("DEALER DREW");
+        },
+        showCards: async () => {
+            console.log("59   ", this.dealerHand)
+            await connData.bot.sendMessage(connData.chatId,"Carte del dealer");
+            this.dealerHand.forEach(async (card) => {
+                console.log("SHOWING ",card.value, card.suit)
+                await connData.bot.sendPhoto(connData.chatId,card.image)
+            });
         },
         checkSum: () => {
             let sum = 0
-            this.hand.forEach((card) => {
+            this.dealerHand.forEach((card) => {
                 sum += card.value; 
             })
             return sum;
         },
         endTurn: () => {
-            this.hand = [];
+            this.dealerHand = [];
+        },
+        getHand: () => {
+            return this.dealerHand;
         }
     }
 }
@@ -80,55 +91,108 @@ const createPlayer = () => {
         canInsure: false,
         balance: 0,
         betAmount:0,
-        hand: [],
+        playerHand: [],
         drawFirstHand: () => {
             let drawUrl = urls.draw.replace("<<$DECK_ID>>",connData.deckId);
             drawUrl = drawUrl.replace("$CARD_COUNT",2);
             fetch(drawUrl).then(r => r.json()).then((newData) => {
-                this.hand = newData.cards;
+                this.playerHand = newData.cards;
                 connData.bot.sendMessage(connData.chatId,"Le tue carte").then(() => {
-                    for (let i = 0;i < this.hand.length;i ++){
-                        let value = functions.convertCardValue(this.hand[i]);
-                        this.hand[i].value = value;
-                        connData.bot.sendPhoto(connData.chatId,this.hand[i].image);
+                    for (let i = 0;i < this.playerHand.length;i ++){
+                        let value = functions.convertCardValue(this.playerHand[i]);
+                        this.playerHand[i].value = value;
+                        connData.bot.sendPhoto(connData.chatId,this.playerHand[i].image);
                     };
                     let sum = 0;
-                    this.hand.forEach((card) => {
+                    this.playerHand.forEach((card) => {
                         sum += card.value;
-                        if (sum < 21) this.canHit = true
+                        if (sum > 21) this.canHit = false;
                     });
                 });
             });   
         },
-        drawCard: () => {
+        drawCard: async () => {
             let drawUrl = urls.draw.replace("<<$DECK_ID>>",connData.deckId);
             drawUrl = drawUrl.replace("$CARD_COUNT",1);
             fetch(drawUrl).then(r => r.json()).then((newData) => {
                 let newCard = newData.cards[0];
                 let value = functions.convertCardValue(newCard);
                 newCard.value = value;
-                this.hand.push(newCard);
-                connData.bot.sendMessage(connData.chatId,"Le tue carte:");
-                setTimeout(() => {
-                    this.hand.forEach((card) => {
-                        connData.bot.sendPhoto(connData.chatId,card.image);
+                this.playerHand.push(newCard);
+                connData.bot.sendMessage(connData.chatId,"Le tue carte:").then(() => {
+                    this.playerHand.forEach(async (card) => {
+                        await connData.bot.sendPhoto(connData.chatId,card.image);
                     });
-                },500);
-            });  
+
+                    let sum = 0;
+                    this.playerHand.forEach((card) => {
+                        sum += card.value; 
+                    })
+
+                    //CONTROLLA PER PAREGGIO
+                    if (sum == 21) {
+                        if (dealer.checkSum() == 21){
+                            dealer.showCards().then(() => {
+                                connData.bot.sendMessage(connData.chatId,"Paerggio");
+                                this.balance += this.betAmount;
+                            })
+                        } else {
+                            connData.bot.sendMessage(connData.chatId,"Hai vinto!");
+                            this.balance += this.betAmount * 2;
+                        }
+                        this.playerHand = [];
+                        this.betAmount = 0;
+                        this.canHit = true;
+                        this.canInsure = false; 
+                        turnOngoing = false;
+                        dealer.endTurn();
+                        connData.bot.sendMessage(connData.chatId, "Fai /bet [amount] per iniziare il turno");
+                    } else {
+                        if (sum > 21) {
+                            let found = false;
+                            for (let i = 0;i < this.playerHand.length;i ++){
+                                if (this.playerHand[i].value == 11){
+                                    this.playerHand[i].value = 1;
+                                    found = true;
+                                    connData.bot.sendMessage(connData.chatId,"Cosa vorresti fare?\n/hit\n/stand");
+                                    break
+                                }
+                            };
+                            if (!found){
+                                connData.bot.sendMessage(connData.chatId,"Bust!");
+                                this.playerHand = [];
+                                this.betAmount = 0;
+                                this.canHit = true;
+                                this.canInsure = false; 
+                                turnOngoing = false;
+                                dealer.endTurn();
+                                connData.bot.sendMessage(connData.chatId, "Fai /bet [amount] per iniziare il turno");
+                            }
+                        } else {
+                            connData.bot.sendMessage(connData.chatId,"Cosa vorresti fare?\n/hit\n/stand");
+                        }
+                    }
+
+                    
+                });         
+            });
         },
         checkSum: () => {
             let sum = 0
-            this.hand.forEach((card) => {
+            this.playerHand.forEach((card) => {
                 sum += card.value; 
             })
             return sum;
         },
         endTurn: () => {
-           this.hand = [];
-           this.betAmount = 0;
-           this.canHit = true;
-           this.canInsure = false; 
-           turnOngoing = false;
+            this.playerHand = [];
+            this.betAmount = 0;
+            this.canHit = true;
+            this.canInsure = false; 
+            turnOngoing = false;
+        },
+        getHand: () => {
+            return this.playerHand;
         }
     }
     
@@ -147,14 +211,12 @@ bot.on("message",(msg) => {
 
     if (text === "/help"){
         bot.sendMessage(chatId, `Per le regole del Blackjack visita il sito: https://www.pokerstars.it/casino/how-to-play/blackjack/rules/ \n
+            Questo bot serve per imparare a giocare, quindi le funzioni piu' avanzate non sono presenti.\n
             Comandi:\n
-                /play [Amount(100 - 10.000)] - Inizia una nuova partita\n
+                /play [Amount] - Inizia una nuova partita\n
                 /bet [Amount] - Gioca una mano\n
                 /hit - Chiedi una carta\n
                 /stay - Conferma la mano\n
-                /double - Raddoppia la mano (Se possibile)\n
-                /split - Splitta la mano (Se possibile)\n
-                /insure - Fa l'assicurazione (Se possibile)\n
                 /balance - Mostra i soldi correnti\n
         `)
     }
@@ -186,80 +248,82 @@ bot.on("message",(msg) => {
 
     if (text.includes("/bet")) {
         let amount = text.split(" ");
-        if (amount.length == 2){
-            amount = parseInt(amount[1]);
-            if (amount > player.balance){
-                bot.sendMessage(chatId, "Non hai abbastanza soldi, SI VA ALL IN!!");
-                amount = player.balance;
-            }
-            if (amount == NaN){
+        if (player.balance > 0){
+            if (amount.length == 2){
+                amount = parseInt(amount[1]);
+                if (amount > player.balance){
+                    bot.sendMessage(chatId, "Non hai abbastanza soldi, SI VA ALL IN!!");
+                    amount = player.balance;
+                }
+                if (amount == NaN){
+                    bot.sendMessage(chatId, "Errore, SI VA ALL IN!!");
+                    amount = player.balance;
+                }
+            } else {
                 bot.sendMessage(chatId, "Errore, SI VA ALL IN!!");
-                amount = player.balance;
+                amount = player.balance
             }
+    
+            player.balance -= amount;
+            player.betAmount = amount;
+            turnOngoing = true;
+            functions.startTurn(player,dealer,bot,chatId);
         } else {
-            bot.sendMessage(chatId, "Errore, SI VA ALL IN!!");
-            amount = player.balance
+            bot.sendMessage(chatId, "Hai finito i soldi.\nFai /play[amount] per iniziare un'altra partita."); 
         }
-
-        player.balance -= amount;
-        player.betAmount = amount;
-        functions.startTurn(player,dealer,bot,chatId);
+        
     }
 
     if (text === "/hit") {
         if (turnOngoing) {
-            if (player.canHit){
-                player.drawCard();
-                let sum = player.checkSum();
-                if (sum > 21) {
-                    bot.sendMessage(chatId,"Bust!");
-                    player.endTurn();
-                    dealer.endTurn();
-                }
-            }
+            if (player.canHit) player.drawCard()
         } else bot.sendMessage(chatId,"Iniziare prima il turno con /bet [amount]");
     }
 
     if (text === "/stand") {
         if (turnOngoing){
-            dealer.showCards();
-            console.log(dealer.hand);
-            let condition = true;
-            while (condition == true){
-                let sum = dealer.checkSum();
-                if (sum < 17) {
-                    console.log("DEALER DRAWING");
-                    async () => await dealer.drawCard();
-                } else condition = false;
-            }
-            const dealerSum = dealer.checkSum();
-            console.log(dealer.hand);
-            console.log("DEALER SUM: ",dealerSum);
-            const playerSum = player.checkSum();
-
-            if (playerSum > dealerSum) {
-                if (playerSum < 22) {
-                    player.balance += player.betAmount * 2;
-                    bot.sendMessage(chatId,"Hai vinto!");
-                    bot.sendMessage(chatId,`Soldi Rimanenti:${player.balance}`);
-                    player.endTurn();
-                } else {
-                    bot.sendMessage(chatId,"Hai perso");
-                    bot.sendMessage(chatId,`Soldi Rimanenti:${player.balance}`);
-                    player.endTurn();
-                }
-            } else {
-                if (dealerSum > 21) {
-                    player.balance += player.betAmount * 2;
-                    bot.sendMessage(chatId,"Hai vinto!");
-                    bot.sendMessage(chatId,`Soldi Rimanenti:${player.balance}`);
-                    player.endTurn();
-                } else {
-                    bot.sendMessage(chatId,"Hai perso");
-                    bot.sendMessage(chatId,`Soldi Rimanenti:${player.balance}`);
-                    player.endTurn();
-                }
-            }
+            console.log(dealer.getHand());
+            dealer.showCards().then(() => {
+                dealer.drawCards().then(() => {
+                    const dealerSum = dealer.checkSum();
+                    const playerSum = player.checkSum();
+    
+                    if (playerSum > dealerSum) {
+                        if (playerSum < 22) {
+                            if (playerSum != dealerSum){
+                                player.balance += player.betAmount * 2;
+                                bot.sendMessage(chatId,"Hai vinto!");
+                                bot.sendMessage(chatId,`Soldi Rimanenti:${player.balance}`);
+                                player.endTurn();
+                            } else {
+                                bot.sendMessage(chatId,"Pareggio!");
+                                player.balance += player.betAmount;
+                            }
+                        } else {
+                            bot.sendMessage(chatId,"Hai perso");
+                            bot.sendMessage(chatId,`Soldi Rimanenti:${player.balance}`);
+                            player.endTurn();
+                        }
+                    } else {
+                        if (dealerSum > 21) {
+                            player.balance += player.betAmount * 2;
+                            bot.sendMessage(chatId,"Hai vinto!");
+                            bot.sendMessage(chatId,`Soldi Rimanenti:${player.balance}`);
+                            player.endTurn();
+                        } else {
+                            bot.sendMessage(chatId,"Hai perso");
+                            bot.sendMessage(chatId,`Soldi Rimanenti:${player.balance}`);
+                            player.endTurn();
+                        }
+                    }
+                });
+            });
+            
+            
         } else bot.sendMessage(chatId,"Iniziare prima il turno con /bet [amount]");
+    }
+
+    if (text === "/balance") {
+        bot.sendMessage(chatId,`Hai ancora ${player.balance}`);
     }
 });

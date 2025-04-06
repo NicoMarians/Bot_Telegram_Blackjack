@@ -1,10 +1,10 @@
 const functions = {
-    startTurn: async (player,dealer,bot,chatId) => {
-        setTimeout(() => dealer.drawFirstHand(),1000);
-        setTimeout(() => player.drawFirstHand(),2000);
-        setTimeout(() => {
+    startTurn: (player,dealer,bot,chatId) => {
+        dealer.drawFirstHand();
+        setTimeout(() => player.drawFirstHand(),1000)
+        setTimeout( () => {
             if (player.canHit){
-                bot.sendMessage(chatId,"Cosa vorresti fare?\n/hit\n/stand\n/double\n/split");
+                bot.sendMessage(chatId,"Cosa vorresti fare?\n/hit\n/stand");
             } else {
                 const dealerSum = dealer.checkSum();
                 if (dealerSum < 21){
@@ -13,14 +13,15 @@ const functions = {
                     player.endTurn();
                     dealer.endTurn();
                 } else {
-                    async () => await dealer.showCards();
-                    player.balance += player.betAmount;
-                    player.endTurn();
-                    dealer.endTurn();
-                    bot.sendMessage(chatId,"Pareggio");
+                    dealer.showCards().then(() => {
+                        player.balance += player.betAmount;
+                        player.endTurn();
+                        dealer.endTurn();
+                        bot.sendMessage(chatId,"Pareggio");
+                    });
                 }
             }
-        },3000);
+        },2000);
         
     },
     convertCardValue: (card) => {
